@@ -74,6 +74,17 @@ public class Tile {
     private final HashMap<String, BCLFileReader[]> bclFileReaderListByRead;
     private final HashMap<String, SCLFileReader[]> sclFileReaderListByRead;
 
+    public int getTotalCluster() {
+        return totalCluster;
+    }
+
+    public int getTotalPFCluster() {
+        return totalPFCluster;
+    }
+    
+    private int totalCluster = 0;
+    private int totalPFCluster = 0;
+
     /**
      * 
      * @param intensityDir intensities directory
@@ -304,6 +315,8 @@ public class Tile {
         //close clocs or pos,  and filter file
         positionReader.close();
         filterFileReader.close();
+        totalCluster = totalClusterInTile;
+        totalPFCluster = filterFileReader.getCurrentPFClusters();
     }
     
     /**

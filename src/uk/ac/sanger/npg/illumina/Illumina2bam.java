@@ -19,7 +19,9 @@
 
 package uk.ac.sanger.npg.illumina;
 
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileWriter;
 import java.util.Date;
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.Usage;
@@ -27,6 +29,7 @@ import net.sf.picard.io.IoUtil;
 import net.sf.picard.util.Log;
 import net.sf.samtools.SAMFileWriter;
 import net.sf.samtools.SAMReadGroupRecord;
+import net.sf.samtools.util.CloserUtil;
 import net.sf.samtools.util.Iso8601Date;
 import uk.ac.sanger.npg.picard.PicardCommandLine;
 
@@ -113,6 +116,9 @@ public class Illumina2bam extends PicardCommandLine {
     //TODO: add command option to skip adding ci tag
     
     //TODO: add command option to overwrite cycle range per read   
+    
+    @Option(shortName="PFS",doc="file for PF statistics, default null, no output", optional=true)
+    public String STAT_FILE;
     
 
     @Override
@@ -209,6 +215,22 @@ public class Illumina2bam extends PicardCommandLine {
         
         log.info("BAM or SAM file generated: " + this.OUTPUT);
 
+        if( STAT_FILE != null){
+            BufferedWriter buf = null;
+            try{
+                buf = new BufferedWriter(new FileWriter(STAT_FILE));
+                for(TileStats ts : lane.tileStats){
+                    buf.write(ts.toString());
+                    buf.newLine();
+                }
+            }catch(Exception ex){
+                log.error( "Could not write stats file " + ex.getMessage() );
+            }finally{
+                if(buf != null){
+                   CloserUtil.close(buf);
+                }
+            }
+        }
         return 0;
     }
 

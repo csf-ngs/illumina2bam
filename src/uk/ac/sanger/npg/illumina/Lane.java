@@ -97,6 +97,8 @@ public class Lane {
     private SAMReadGroupRecord readGroup;
 
     private final XPath xpath;
+    
+    final List<TileStats> tileStats = new ArrayList<TileStats>();
 
 
     /**
@@ -228,6 +230,7 @@ public class Lane {
             
             log.info("Closing base call files");
             tile.closeBaseCallFiles();
+            tileStats.add(new TileStats(laneNumber, tileNumber, tile.getTotalCluster(), tile.getTotalPFCluster()));
         }
 
         return true;
