@@ -122,8 +122,9 @@ public class Lane {
                 boolean pfFilter,
                 File output,
                 String barcodeSeqTagName,
-                String barcodeQualTagName){
-
+                String barcodeQualTagName,
+                String cycleRanges){
+        this.cycleRangeByRead = parseCycleRanges(cycleRanges);
         this.intensityDir      = intensityDir;
         this.baseCallDir       = baseCallDir;
         this.runFolder         = runFolder;
@@ -413,7 +414,7 @@ public class Lane {
         if(this.runDateConfig != null){
             log.info("Run date: " + runDateConfig);
         }
-        
+        if(this.cycleRangeByRead == null){
         //try different file for cycle and read information
         if(this.runInfoDoc != null){
             
@@ -436,7 +437,7 @@ public class Lane {
         if(this.cycleRangeByRead == null){
             throw new RuntimeException("Problems to get cycle and read infomation from config files");
         }
-        
+        }
         this.mergeIndexReads();
     }
     private int [] mergeTileList(int [] tileListByList, int [] tileListByRange){
@@ -1115,4 +1116,31 @@ public class Lane {
     public HashMap<String, int[]> getCycleRangeByRead() {
         return cycleRangeByRead;
     }
+    
+        
+    final public int[] parseRange(String range){
+       String[] items = range.split("-");
+       return new int[]{Integer.parseInt(items[0]),Integer.parseInt(items[1])};
+    }
+    
+    final public HashMap<String, int[]> parseCycleRanges(String input){
+        if(input == "auto"){
+            return null;
+        }else{
+           HashMap<String, int[]> result = new HashMap<String, int[]>();
+           String[] items = input.split(",");
+           int read = 0;
+           for(String item: items){
+              read += 1;
+              if(item.endsWith("i")){
+                 read -= 1;
+                 result.put("readIndex", parseRange(item.replace("i","")));                 
+              }else{
+                 result.put("read"+read, parseRange(item));   
+              }                  
+           }         
+           return result;
+        }       
+    }
+    
 }

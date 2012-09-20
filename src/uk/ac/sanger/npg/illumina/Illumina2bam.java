@@ -120,7 +120,10 @@ public class Illumina2bam extends PicardCommandLine {
     @Option(shortName="PFS",doc="file for PF statistics, default null, no output", optional=true)
     public String STAT_FILE;
     
-
+    @Option(shortName="cycles",doc="comma separated list of cycle ranges e.g. 1-100,101-107i", optional=true)
+    public String cycleRanges = "auto";
+    
+    
     @Override
     protected int doWork() {
 
@@ -157,7 +160,9 @@ public class Illumina2bam extends PicardCommandLine {
                 this.PF_FILTER,
                 this.OUTPUT,
                 this.BARCODE_SEQUENCE_TAG_NAME,
-                this.BARCODE_QUALITY_TAG_NAME);
+                this.BARCODE_QUALITY_TAG_NAME,
+                this.cycleRanges
+                );
         
                
         if ( (this.SECOND_BARCODE_QUALITY_TAG_NAME != null && this.SECOND_BARCODE_SEQUENCE_TAG_NAME == null)
