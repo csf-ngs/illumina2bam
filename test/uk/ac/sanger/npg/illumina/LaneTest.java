@@ -36,6 +36,7 @@ import org.junit.Test;
 /**
  *
  * @author gq1@sanger.ac.uk
+ * @author dj3@sanger.ac.uk
  */
 public class LaneTest {
 
@@ -50,45 +51,27 @@ public class LaneTest {
 
     private static File output = new File("testdata/6000_1.bam");
 
-    private static Lane lane;
-
     public LaneTest() {
         TimeZone.setDefault(TimeZone.getTimeZone("GMT"));
     }
 
-    @BeforeClass
-    public static void setUpClass() throws Exception {
-        
-        System.out.println("Create a lane");
-        lane = new Lane(intensityDir, baseCallDir, runfolderDir, laneNumber, includeSecondCall, pfFilter, output, barcodeSeqTagName, barcodeQualTagName);
-    }
-
-    @AfterClass
-    public static void tearDownClass() throws Exception {
-        
-        System.out.println("tearDownClass");
-        lane = null;
-    }
     @Test (expected = RuntimeException.class)
-    public void bothConfigfileNotAvailable(){
+    public void basecallDirectoryCheck(){
        
-        System.out.println("Failed to create a lane with non-exist intensity and basecall directories");
+        System.out.println("Failed to create a lane with non-existent basecall directories");
         Lane failedLane = new Lane(intensityDir + "_not", baseCallDir + "_not", null, laneNumber, includeSecondCall, pfFilter, output, barcodeSeqTagName, barcodeQualTagName);
     }
     
     @Test
-    public void readBaseCallProgramOK(){
+    public void readLaneOK(){
         
+        Lane lane = new Lane(intensityDir, baseCallDir, runfolderDir, laneNumber, includeSecondCall, pfFilter, output, barcodeSeqTagName, barcodeQualTagName);
         System.out.println("readBaseCallProgramRecord");
         SAMProgramRecord baseCallProgram = lane.readBaseCallProgramRecord();
         assertEquals( baseCallProgram.getId(), "basecalling");
         assertEquals( baseCallProgram.getProgramName(), "RTA");
         assertEquals( baseCallProgram.getProgramVersion(), "1.10.36.0");
         assertEquals( baseCallProgram.getAttribute("DS"), "Basecalling Package");
-    }
-
-    @Test
-    public void readTileListOK(){
         
         System.out.println("readTileList");
         int [] expectedTileList = {
@@ -98,10 +81,6 @@ public class LaneTest {
             2201,2202,2203,2204,2205,2206,2207,2208
         };
         assertArrayEquals(expectedTileList, lane.readTileList());
-    }
-
-    @Test
-    public void reduceTileListOK(){
 
         System.out.println("reduceTileList");
         int [] givenTileList = {
@@ -111,16 +90,39 @@ public class LaneTest {
             2201,2202,2203,2204,2205,2206,2207,2208
         };
         lane.setTileList(givenTileList);
-
+        
         lane.reduceTileList(1102, 2);
         
-        int [] expectedTileList = {1102,1103};
-        assertArrayEquals(lane.getTileList(), expectedTileList);
+        int [] newExpectedTileList = {1102,1103};
+        assertArrayEquals(lane.getTileList(), newExpectedTileList);
+    
+        System.out.println("readRunfolder");
+        assertEquals(lane.readRunfolder(), "110323_HS13_06000_B_B039WABXX");
+
+        System.out.println("readRunDate");
+        Date runDate = lane.readRunDate();
+        long expected = 1300838400000L;
+        assertEquals(runDate.getTime(), expected);
+
+        System.out.println("readInstrumentAndRunID");
+        assertEquals(lane.readInstrumentAndRunID(), "HS13_6000");
+
+        System.out.println("readCycleRangeByRead");
+        int[][] expectedRange = {
+                {1,2},
+                {51,52}
+        };
+        assertArrayEquals(lane.readCycleRangeByRead(), expectedRange);
+
+        System.out.println("readBarCodeIndexCycles");
+        assertNull(lane.readBarCodeIndexCycles());
+
     }
 
     @Test (expected = RuntimeException.class)
-    public void reduceTileListFirstTileException(){
+    public void reduceTileListTileException(){
 
+        Lane lane1 = new Lane(intensityDir, baseCallDir, runfolderDir, laneNumber, includeSecondCall, pfFilter, output, barcodeSeqTagName, barcodeQualTagName);
         System.out.println("Fail to reduceTileList");
         int [] givenTileList = {
             1101,1102,1103,1104,1105,1106,1107,1108,
@@ -128,85 +130,42 @@ public class LaneTest {
             2101,2102,2103,2104,2105,2106,2107,2108,
             2201,2202,2203,2204,2205,2206,2207,2208
         };
-        lane.setTileList(givenTileList);
+        lane1.setTileList(givenTileList);
 
-        lane.reduceTileList(3308, 2);
-    }
-
-    @Test (expected = RuntimeException.class)
-    public void reduceTileListTileLimitException(){
-
-        System.out.println("Fail to reduceTileList again");
-        int [] givenTileList = {
-            1101,1102,1103,1104,1105,1106,1107,1108,
-            1201,1202,1203,1204,1205,1206,1207,1208,
-            2101,2102,2103,2104,2105,2106,2107,2108,
-            2201,2202,2203,2204,2205,2206,2207,2208
-        };
-        lane.setTileList(givenTileList);
-
-        lane.reduceTileList(1103, 33);
-    }
-
-    @Test
-    public void readRunfolderOK(){
-        
-        System.out.println("readRunfoder");
-        assertEquals(lane.readRunfoder(), "110323_HS13_06000_B_B039WABXX");
-    }
- 
-    @Test
-    public void readRunDateOK(){
-        
-        System.out.println("readRunDate");
-        Date runDate = lane.readRunDate();
-        long expected = 1300838400000L;
-        assertEquals(runDate.getTime(), expected);
+        lane1.reduceTileList(3308, 2);
     }
     
-    @Test
-    public void readInstrumentAndRunIDOK(){
-        
-        System.out.println("readInstrumentAndRunID");
-        assertEquals(lane.readInstrumentAndRunID(), "HS13_6000");
-    }
-
-    @Test
-    public void reaCycleRangeByReadOK(){
-        
-        System.out.println("readCycleRangeByRead");
-        int[][] expected = {
-            {1,2},
-            {51,52}
+    @Test (expected = RuntimeException.class)
+    public void reduceTileListTileAgainException(){
+        Lane lane1 = new Lane(intensityDir, baseCallDir, runfolderDir, laneNumber, includeSecondCall, pfFilter, output, barcodeSeqTagName, barcodeQualTagName);
+        System.out.println("Fail to reduceTileList again");
+        int [] newGivenTileList = {
+                1101,1102,1103,1104,1105,1106,1107,1108,
+                1201,1202,1203,1204,1205,1206,1207,1208,
+                2101,2102,2103,2104,2105,2106,2107,2108,
+                2201,2202,2203,2204,2205,2206,2207,2208
         };
-        assertArrayEquals(lane.readCycleRangeByRead(), expected);
-    }
+        lane1.setTileList(newGivenTileList);
 
-    @Test
-    public void reaBarCodeIndexCyclesNotOK(){
-        
-        System.out.println("readBarCodeIndexCycles");
-        assertNull(lane.readBarCodeIndexCycles());
+        lane1.reduceTileList(1103, 33);
     }
 
     @Test
     public void checkCycleRangeByReadOK() throws Exception{
-        
+            
+        Lane lane = new Lane(intensityDir, baseCallDir, runfolderDir, laneNumber, includeSecondCall, pfFilter, output, barcodeSeqTagName, barcodeQualTagName);
         System.out.println("checkCycleRangeByRead");
         HashMap<String, int[]> cycleRangeByRead = lane.checkCycleRangeByRead();
         int [] read1CycleRange = {1, 2};
         assertArrayEquals(cycleRangeByRead.get("read1"), read1CycleRange);
         int [] read2CycleRange = {51, 52};
         assertArrayEquals(cycleRangeByRead.get("read2"), read2CycleRange);
-    }
-
-    @Test
-    public void checkCycleRangeByReadFromRunInfoOK() throws Exception{
-        
+    
         System.out.println("getCycleRangeByReadFromRunInfoFile");
-        HashMap<String, int[]> cycleRangeByRead = lane.getCycleRangeByReadFromRunInfoFile();
-        assertNull(cycleRangeByRead);
+        HashMap<String, int[]> cycleRangeByRead1 = lane.getCycleRangeByReadFromRunInfoFile();
+        assertNull(cycleRangeByRead1);
     }
+    
     @Test
     public void readCycleRangeFromRunParameters(){
 
@@ -220,8 +179,7 @@ public class LaneTest {
         boolean pfFilter2 = true;
 
         Lane lane2 = new Lane(intensityDir2, baseCallDir2, runfolderDir2, laneNumber2, includeSecondCall2, pfFilter2, output, barcodeSeqTagName, barcodeQualTagName);
-
-        
+    
         HashMap<String, int[]> cycleRangeByRead = lane2.getCycleRangeByReadFromRunParametersFile();
         
         assertEquals(cycleRangeByRead.keySet().size(), 3);
@@ -275,52 +233,42 @@ public class LaneTest {
     }
 
     @Test
-    public void readInstrumentProgramOK(){
-
+    public void readInstrumentLaneHeaderOK() throws Exception{
+        
+        Lane lane = new Lane(intensityDir, baseCallDir, runfolderDir, laneNumber, includeSecondCall, pfFilter, output, barcodeSeqTagName, barcodeQualTagName);
         System.out.println("readInstrumentProgramRecord");
         SAMProgramRecord instrumentProgram = lane.readInstrumentProgramRecord();
         assertEquals( instrumentProgram.getId(), "SCS");
         assertEquals( instrumentProgram.getProgramName(), "RTA");
         assertEquals( instrumentProgram.getProgramVersion(), "1.10.36.0");
         assertEquals( instrumentProgram.getAttribute("DS"), "Controlling software on instrument");
-    }
-
-    @Test
-    public void readConfigsOK() throws Exception{
-        
+    
         System.out.println("readConfigs");
         assertTrue(lane.readConfigs());
-    }
-
-    @Test
-    public void generateHeaderOK() throws Exception{
 
         System.out.println("Generate output bam header");
         SAMReadGroupRecord readGroup = new SAMReadGroupRecord("1");
         lane.setReadGroup(readGroup);
 
         SAMFileHeader header = lane.generateHeader();
-        File tempBamFile = File.createTempFile("test", ".bam", new File("testdata/"));
+        
+        File tempBamFile = new File("testdata/testGenerateHeader.bam");
         tempBamFile.deleteOnExit();
 
         SAMFileWriterFactory factory = new SAMFileWriterFactory();
         factory.setCreateMd5File(true);
-        SAMFileWriter outputSam = factory.makeSAMOrBAMWriter(header, true, tempBamFile);
+        SAMFileWriter outputSamHeader = factory.makeSAMOrBAMWriter(header, true, tempBamFile);
 
-        outputSam.close();
+        outputSamHeader.close();
 
-        File md5File = new File(tempBamFile.getAbsolutePath() + ".md5");
-        md5File.deleteOnExit();
-        BufferedReader md5Stream = new BufferedReader(new FileReader(md5File));
-        String md5 = md5Stream.readLine();
-        assertEquals(md5, "91006c6f261a94bd15896f3d0e8028bd");
-    }
-
-    @Test
-    public void generateOutputSamStreamOK() throws Exception{
-
+        File headerMd5File = new File(tempBamFile.getAbsolutePath() + ".md5");
+        headerMd5File.deleteOnExit();
+        BufferedReader headerMd5Stream = new BufferedReader(new FileReader(headerMd5File));
+        String headerMd5 = headerMd5Stream.readLine();
+        assertEquals("121501fc17f92ccc1360ccb7c6bb8762", headerMd5);
+            
         System.out.println("Generate output stream");
-        
+
         SAMFileWriterFactory.setDefaultCreateMd5File(true);
         SAMFileWriter outputSam = lane.generateOutputSamStream();
         assertNotNull(outputSam);
@@ -331,14 +279,10 @@ public class LaneTest {
         md5File.deleteOnExit();
         BufferedReader md5Stream = new BufferedReader(new FileReader(md5File));
         String md5 = md5Stream.readLine();
-        assertEquals(md5, "91006c6f261a94bd15896f3d0e8028bd");
-    }
+        assertEquals("121501fc17f92ccc1360ccb7c6bb8762", md5);
 
-    @Test
-    public void processTilesOK() throws IOException, Exception{
-        
         System.out.println("Process Tiles");
-        
+
         String id = "HS13_6000";
         int[] cycleRangeRead1 = {1, 2};
         int[] cycleRangeRead2 = {51, 52};
@@ -353,26 +297,26 @@ public class LaneTest {
         lane.setCycleRangeByRead(cycleRangeByRead);
         lane.setId(id);
         lane.setTileList(tileList);
+      
+        File tempBamFile1 = new File("testdata/testProcessTiles.bam");
+        tempBamFile1.deleteOnExit();
 
-        File tempBamFile = File.createTempFile("test", ".bam", new File("testdata/"));
-        tempBamFile.deleteOnExit();
+        SAMFileWriterFactory factory1 = new SAMFileWriterFactory();
+        factory1.setCreateMd5File(true);
+        SAMFileHeader header1 = new SAMFileHeader();
+        SAMFileWriter outputSam1 = factory1.makeSAMOrBAMWriter(header1, true, tempBamFile1);
 
-        SAMFileWriterFactory factory = new SAMFileWriterFactory();
-        factory.setCreateMd5File(true);
-        SAMFileHeader header = new SAMFileHeader();
-        SAMFileWriter outputSam = factory.makeSAMOrBAMWriter(header, true, tempBamFile);
+        assertTrue(lane.processTiles(outputSam1));
 
-        assertTrue(lane.processTiles(outputSam));
+        outputSam1.close();
 
-        outputSam.close();
-
-        File md5File = new File(tempBamFile.getAbsolutePath() + ".md5");
-        md5File.deleteOnExit();
-        BufferedReader md5Stream = new BufferedReader(new FileReader(md5File));
-        String md5 = md5Stream.readLine();
-        assertEquals(md5, "3e256b176c26283991ce0704457f0d3d");
+        File md5File1 = new File(tempBamFile1.getAbsolutePath() + ".md5");
+        md5File1.deleteOnExit();
+        BufferedReader md5Stream1 = new BufferedReader(new FileReader(md5File1));
+        String md51 = md5Stream1.readLine();
+        assertEquals("0dbd4158a9d9dea6403daa285945113b", md51);
     }
-    
+
     @Test
     public void checkGARunOK() throws Exception {
         
@@ -452,4 +396,167 @@ public class LaneTest {
         assertEquals( instrumentProgram.getAttribute("DS"), "Controlling software on instrument");
 
     }
+
+    @Test
+    public void readHiSeqXLaneOK(){
+        String intensityDir = "testdata/140609_HX1_ValB_B_H04ENALXX/Data/Intensities";
+        String baseCallDir = "testdata/140609_HX1_ValB_B_H04ENALXX/Data/Intensities/BaseCalls";
+        String runfolderDir = "testdata/140609_HX1_ValB_B_H04ENALXX";
+        int laneNumber = 1;
+        boolean includeSecondCall = false;
+        boolean pfFilter = true;
+        String barcodeSeqTagName = "RT";
+        String barcodeQualTagName = "QT";
+
+        Lane lane = new Lane(intensityDir, baseCallDir, runfolderDir, laneNumber, includeSecondCall, pfFilter, output, barcodeSeqTagName, barcodeQualTagName);
+        System.out.println("readBaseCallProgramRecord");
+        SAMProgramRecord baseCallProgram = lane.getBaseCallProgram();
+        assertNotNull( "Creating basecalling SAMProgramRecord", baseCallProgram);
+        assertEquals( "baseCallProgram.getId()", "basecalling", baseCallProgram.getId() );
+        assertEquals( "baseCallProgram.getProgramName()", "RTA", baseCallProgram.getProgramName() );
+        assertEquals( "baseCallProgram.getProgramVersion()", "2.2.1", baseCallProgram.getProgramVersion() );
+        assertEquals( "baseCallProgram.getAttribute(\"DS\")", "Basecalling Package", baseCallProgram.getAttribute("DS") );
+        System.out.println("getInstrumentProgram");
+        SAMProgramRecord instrumentProgram = lane.getInstrumentProgram();
+        assertNotNull( "Creating instrument SAMProgramRecord", instrumentProgram);
+        assertEquals( "instrumentProgram.getId()", "SCS", instrumentProgram.getId() );
+        assertEquals( "instrumentProgram.getProgramName()", "HiSeq X Control Software", instrumentProgram.getProgramName() );
+        assertEquals( "instrumentProgram.getProgramVersion()", "3.0.29.0", instrumentProgram.getProgramVersion() );
+        assertEquals( "instrumentProgram.getAttribute(\"DS\")", "Controlling software on instrument", instrumentProgram.getAttribute("DS") );
+        
+        System.out.println("getTileList");
+        int [] expectedTileList = {
+            1101,1102,1103,1104,1105,1106,1107,1108,1109,1110,1111,1112,1113,1114,1115,1116,1117,1118,1119,1120,1121,1122,1123,1124,
+            1201,1202,1203,1204,1205,1206,1207,1208,1209,1210,1211,1212,1213,1214,1215,1216,1217,1218,1219,1220,1221,1222,1223,1224,
+            2101,2102,2103,2104,2105,2106,2107,2108,2109,2110,2111,2112,2113,2114,2115,2116,2117,2118,2119,2120,2121,2122,2123,2124,
+            2201,2202,2203,2204,2205,2206,2207,2208,2209,2210,2211,2212,2213,2214,2215,2216,2217,2218,2219,2220,2221,2222,2223,2224
+        };
+        assertArrayEquals("getTileList()", expectedTileList, lane.getTileList());
+
+        System.out.println("reduceTileList");
+        int [] givenTileList = {
+            1101,1102,1103,1104,1105,1106,1107,1108,
+            1201,1202,1203,1204,1205,1206,1207,1208,
+            2101,2102,2103,2104,2105,2106,2107,2108,
+            2201,2202,2203,2204,2205,2206,2207,2208
+        };
+        lane.setTileList(givenTileList);
+        
+        lane.reduceTileList(1102, 2);
+        
+        int [] newExpectedTileList = {1102,1103};
+        assertArrayEquals( newExpectedTileList, lane.getTileList() );
+    
+        System.out.println("getRunfolderConfig");
+        assertEquals("getRunfolderConfig()", "140609_HX1_ValB_B_H04ENALXX", lane.getRunfolderConfig() );
+
+        System.out.println("getRunDateConfig");
+        Date runDateConfig = lane.getRunDateConfig();
+        long expected = 1402272000000L;
+        assertEquals( "runDateConfig.getTime()", expected, runDateConfig.getTime() );
+
+        System.out.println("readInstrumentAndRunID");
+        assertEquals("lane.readInstrumentAndRunID()", null, lane.readInstrumentAndRunID());
+
+        System.out.println("getCycleRangeByRead");
+        HashMap<String,int[]> cycleRangeByRead = lane.getCycleRangeByRead();
+        assertNotNull("getCycleRangeByRead()", cycleRangeByRead );
+        assertArrayEquals(new int[]{1,151}, cycleRangeByRead.get("read1"));
+        assertArrayEquals(new int[]{152,302}, cycleRangeByRead.get("read2"));
+        assertNull(cycleRangeByRead.get("readIndex"));
+        assertNull(cycleRangeByRead.get("readIndex2"));
+
+    }
+
+    @Test
+    public void readMiSeqDualIndexLaneOK(){
+        String intensityDir = "testdata/140624_MS6_13349_A_MS2639979-300V2/Data/Intensities";
+        String baseCallDir = "testdata/140624_MS6_13349_A_MS2639979-300V2/Data/Intensities/BaseCalls";
+        String runfolderDir = "testdata/140624_MS6_13349_A_MS2639979-300V2/";
+        int laneNumber = 1;
+        boolean includeSecondCall = false;
+        boolean pfFilter = true;
+        String barcodeSeqTagName = "BC";
+        String barcodeQualTagName = "QT";
+
+        Lane lane = new Lane(intensityDir, baseCallDir, runfolderDir, laneNumber, includeSecondCall, pfFilter, output, barcodeSeqTagName, barcodeQualTagName);
+        System.out.println("readBaseCallProgramRecord");
+        SAMProgramRecord baseCallProgram = lane.getBaseCallProgram();
+        assertNotNull( "Creating basecalling SAMProgramRecord", baseCallProgram);
+        assertEquals( "baseCallProgram.getId()", "basecalling", baseCallProgram.getId() );
+        assertEquals( "baseCallProgram.getProgramName()", "RTA", baseCallProgram.getProgramName() );
+        assertEquals( "baseCallProgram.getProgramVersion()", "1.18.54.0", baseCallProgram.getProgramVersion() );
+        assertEquals( "baseCallProgram.getAttribute(\"DS\")", "Basecalling Package", baseCallProgram.getAttribute("DS") );
+        System.out.println("getInstrumentProgram");
+        SAMProgramRecord instrumentProgram = lane.getInstrumentProgram();
+        assertNotNull( "Creating instrument SAMProgramRecord", instrumentProgram);
+        assertEquals( "instrumentProgram.getId()", "SCS", instrumentProgram.getId() );
+        assertEquals( "instrumentProgram.getProgramName()", "MiSeq Control Software", instrumentProgram.getProgramName() );
+        assertEquals( "instrumentProgram.getProgramVersion()", "2.4.1.3", instrumentProgram.getProgramVersion() );
+        assertEquals( "instrumentProgram.getAttribute(\"DS\")", "Controlling software on instrument", instrumentProgram.getAttribute("DS") );
+        
+        System.out.println("getTileList");
+        int [] expectedTileList = {
+            1101,1102,1103,1104,1105,1106,1107,1108,1109,1110,1111,1112,1113,1114,
+            2101,2102,2103,2104,2105,2106,2107,2108,2109,2110,2111,2112,2113,2114
+        };
+        assertArrayEquals("getTileList()", expectedTileList, lane.getTileList());
+
+        System.out.println("reduceTileList");
+        int [] givenTileList = {
+            1101,1102,1103,1104,1105,1106,1107,1108,
+            2101,2102,2103,2104,2105,2106,2107,2108
+        };
+        lane.setTileList(givenTileList);
+        
+        lane.reduceTileList(1102, 2);
+        
+        int [] newExpectedTileList = {1102,1103};
+        assertArrayEquals( newExpectedTileList, lane.getTileList() );
+    
+        System.out.println("getRunfolderConfig");
+        assertEquals("getRunfolderConfig()", "140624_MS6_13349_A_MS2639979-300V2", lane.getRunfolderConfig() );
+
+        System.out.println("getRunDateConfig");
+        Date runDateConfig = lane.getRunDateConfig();
+        long expected = 1403568000000L;
+        assertEquals( "runDateConfig.getTime()", expected, runDateConfig.getTime() );
+
+        System.out.println("readInstrumentAndRunID");
+        assertEquals("lane.readInstrumentAndRunID()", "MS6_13349", lane.readInstrumentAndRunID());
+
+        System.out.println("getCycleRangeByRead");
+        HashMap<String,int[]> cycleRangeByRead = lane.getCycleRangeByRead();
+        assertNotNull("getCycleRangeByRead()", cycleRangeByRead );
+        assertArrayEquals(new int[]{1,75}, cycleRangeByRead.get("read1"));
+        assertArrayEquals(new int[]{96,170}, cycleRangeByRead.get("read2"));
+        assertArrayEquals(new int[]{76,95}, cycleRangeByRead.get("readIndex"));
+        assertNull(cycleRangeByRead.get("readIndex2"));
+
+    }
+
+    @Test
+    public void readMiSeqDualIndexLaneSeparateTagsOK(){
+        String intensityDir = "testdata/140624_MS6_13349_A_MS2639979-300V2/Data/Intensities";
+        String baseCallDir = "testdata/140624_MS6_13349_A_MS2639979-300V2/Data/Intensities/BaseCalls";
+        String runfolderDir = "testdata/140624_MS6_13349_A_MS2639979-300V2/";
+        int laneNumber = 1;
+        boolean includeSecondCall = false;
+        boolean pfFilter = true;
+        String barcodeSeqTagName = "b2";
+        String barcodeQualTagName = "q2";
+        String secondBarcodeSeqTagName = "BC";
+        String secondBarcodeQualTagName = "QT";
+
+        Lane lane = new Lane(intensityDir, baseCallDir, runfolderDir, laneNumber, includeSecondCall, pfFilter, output, barcodeSeqTagName, barcodeQualTagName, secondBarcodeSeqTagName, secondBarcodeQualTagName);
+        System.out.println("getCycleRangeByRead");
+        HashMap<String,int[]> cycleRangeByRead = lane.getCycleRangeByRead();
+        assertNotNull("getCycleRangeByRead()", cycleRangeByRead );
+        assertArrayEquals(new int[]{1,75}, cycleRangeByRead.get("read1"));
+        assertArrayEquals(new int[]{96,170}, cycleRangeByRead.get("read2"));
+        assertArrayEquals(new int[]{76,87}, cycleRangeByRead.get("readIndex"));
+        assertArrayEquals(new int[]{88,95}, cycleRangeByRead.get("readIndex2"));
+
+    }
+
 }

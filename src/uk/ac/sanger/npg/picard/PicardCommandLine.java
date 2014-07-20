@@ -32,7 +32,7 @@ import net.sf.samtools.SAMProgramRecord;
  */
 public abstract class PicardCommandLine extends CommandLineProgram {
     
-    public static final String version = "1.03";
+    public static final String version = "1.16";
     
     /**
      * Generate Program Record for this program itself
@@ -47,7 +47,12 @@ public abstract class PicardCommandLine extends CommandLineProgram {
         
         programRecord.setProgramName(programName);
         programRecord.setCommandLine(this.getCommandLine());
-        programRecord.setProgramVersion(this.getProgramVersion());
+        // use ImplementationVersion from manifest by preference, fall back to class's version 
+        String programVersion = this.getCommandLineParser().getVersion();
+        if(programVersion == null || programVersion.length() == 0){
+            programVersion = this.getProgramVersion();
+        }
+        programRecord.setProgramVersion(programVersion);
         programRecord.setAttribute("DS", programDS);
    
         return programRecord;
@@ -57,15 +62,18 @@ public abstract class PicardCommandLine extends CommandLineProgram {
      * 
      * @param header
      * @param programRecord 
+     * @return programRecord with Id
      */
-    public void addProgramRecordToHead(SAMFileHeader header, SAMProgramRecord programRecord){
+    public SAMProgramRecord addProgramRecordToHead(SAMFileHeader header, SAMProgramRecord programRecord){
         //TODO: check the new program ID does not exist in the old list
         List<SAMProgramRecord> programList = header.getProgramRecords();
         if(programList != null && ! programList.isEmpty() ){
             String previousProgramId =  programList.get(programList.size() - 1 ).getProgramGroupId();
             programRecord.setPreviousProgramGroupId(previousProgramId);
-        }        
-        header.addProgramRecord(this.makeUniqueProgramId(programList, programRecord));
+        }
+        final SAMProgramRecord newProgramRecord = this.makeUniqueProgramId(programList, programRecord);
+        header.addProgramRecord(newProgramRecord);
+        return newProgramRecord;
     }
     
     public SAMProgramRecord makeUniqueProgramId(List<SAMProgramRecord> programList,  SAMProgramRecord programRecord){

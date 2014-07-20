@@ -51,6 +51,9 @@ public class Tile {
     private String secondBarcodeSeqTagName;
     private String secondBarcodeQualTagName;
 
+    private int bc_read;
+    private int sec_bc_read;
+
     private final HashMap<String, int[]> cycleRangeByRead;
 
     private final boolean includeSecondCall;
@@ -148,20 +151,16 @@ public class Tile {
         final DecimalFormat tileNumberFormatter = new DecimalFormat("0000");
         this.tileNameInFour = "s_" + this.laneNumber + "_" + tileNumberFormatter.format(this.tileNumber);
 
-        this.cLocsFileName = this.intensityDir
-                + File.separator
-                + this.laneSubDir
-                + File.separator
-                + this.tileNameInFour + ".clocs";
-        this.locsFileName = this.intensityDir
-                + File.separator
-                + this.laneSubDir
-                + File.separator
-                + this.tileName + ".locs";
-
-        this.posFileName = this.intensityDir
-                + File.separator
-                + this.tileNameInFour + "_pos.txt";
+        String sep  = File.separator;
+        String idir = this.intensityDir + sep;
+        this.posFileName      = idir + this.tileNameInFour + "_pos.txt";
+        this.cLocsFileName    = idir + this.laneSubDir + sep + this.tileNameInFour + ".clocs";
+        String lfn            = idir + this.laneSubDir + sep + this.tileName + ".locs";
+        File locsFile = new File( lfn );
+        if (!locsFile.exists()) {
+          lfn                 = idir + "s.locs"; 
+        }
+        this.locsFileName     = lfn;
 
         this.filterFileName = this.checkFilterFileName();
     }
@@ -187,7 +186,7 @@ public class Tile {
         PositionFileReader positionReader = null;
 
         if(clocsFile.exists()){
-            
+
            log.info("open clocs file: " + this.getcLocsFileName());
            positionReader = new CLocsFileReader(this.getcLocsFileName());
         }else if(locsFile.exists()){
@@ -266,10 +265,21 @@ public class Tile {
 
             //write to bam
             if(!(this.pfFilter && filtered == 0)){
-                SAMRecord recordRead1 = this.getSAMRecord(samFileHeader, readName, clusterIndex, basesQuals1, secondBases1, basesQualsIndex, basesQualsIndex2, filtered, pairedRead, true);
+                byte [][] read1_qi1 = null;
+                byte [][] read1_qi2 = null;
+                byte [][] read2_qi1 = null;
+                byte [][] read2_qi2 = null;
+                if (this.bc_read == 0) { this.bc_read = 1; }
+                if (this.sec_bc_read == 0) { this.sec_bc_read = this.bc_read; }
+                if (this.bc_read == 1) { read1_qi1 = basesQualsIndex; } 
+                else                   { read2_qi1 = basesQualsIndex; }
+                if (this.sec_bc_read == 1) { read1_qi2 = basesQualsIndex2; } 
+                else                       { read2_qi2 = basesQualsIndex2; }
+
+                SAMRecord recordRead1 = this.getSAMRecord(samFileHeader, readName, clusterIndex, basesQuals1, secondBases1, read1_qi1, read1_qi2, filtered, pairedRead, true);
                 this.writeToBam(outputSam, recordRead1);
                 if(this.pairedRead){
-                    SAMRecord recordRead2 = this.getSAMRecord(samFileHeader, readName, clusterIndex, basesQuals2, secondBases2, null, null, filtered, pairedRead, false);
+                    SAMRecord recordRead2 = this.getSAMRecord(samFileHeader, readName, clusterIndex, basesQuals2, secondBases2, read2_qi1, read2_qi2, filtered, pairedRead, false);
                     this.writeToBam(outputSam, recordRead2);
                 }
             }
@@ -613,17 +623,15 @@ public class Tile {
     }
 
     /**
-     * form read name for one cluster
+     * form read name for one cluster, read id is optional
      *
      * @param pos
      * @return whole read name
      */
     public String getReadName(String [] pos){
-        return this.id
-                + ":" + this.laneNumber
-                + ":" + this.tileNumber
-                + ":" + pos[0]
-                + ":" + pos[1];
+        String readId = this.id;
+        String name = (readId == null || readId.isEmpty()) ? "" + this.laneNumber : (readId + ":" + this.laneNumber);
+        return (name + ":" + this.tileNumber + ":" + pos[0] + ":" + pos[1]);
     }
 
     /**
@@ -633,6 +641,10 @@ public class Tile {
      * @return BCL or SCL base call file name 
      */
     public String getBaseCallFileName(int cycle, boolean firstCall) {
+        /*
+          Find a 'root' name for basecall file; not necessarily a complete path
+          IlluminaFileReader checks whether the path has a .gz extension
+         */
         String cycleDir = this.baseCallDir
                 + File.separator
                 + this.laneSubDir
@@ -800,4 +812,19 @@ public class Tile {
     public void setSecondBarcodeQualTagName(String secondBarcodeQualTagName) {
         this.secondBarcodeQualTagName = secondBarcodeQualTagName;
     }
+
+    /**
+     * @param bc_read the read to put the barcode tag on
+     */
+    public void set_bc_read(int bc_read) {
+        this.bc_read = bc_read;
+    }
+
+    /**
+     * @param sec_bc_read the read to put the second barcode tag on
+     */
+    public void set_sec_bc_read(int sec_bc_read) {
+        this.sec_bc_read = sec_bc_read;
+    }
+
 }

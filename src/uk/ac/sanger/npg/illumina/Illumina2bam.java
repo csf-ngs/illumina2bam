@@ -20,7 +20,9 @@
 package uk.ac.sanger.npg.illumina;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.Usage;
 import net.sf.picard.io.IoUtil;
@@ -104,15 +106,37 @@ public class Illumina2bam extends PicardCommandLine {
     @Option(shortName="BC_QUAL", doc="Tag name for barcode quality.")
     public String BARCODE_QUALITY_TAG_NAME = "QT";
 
+    @Option(doc="Which read (1 or 2) should the barcode sequence and quality be added to?", optional=true)
+    public Integer BC_READ;
+
     @Option(shortName="SEC_BC_SEQ", doc="Tag name for second  barcode sequence.", optional=true)
     public String SECOND_BARCODE_SEQUENCE_TAG_NAME;
 
     @Option(shortName="SEC_BC_QUAL", doc="Tag name for second barcode quality.", optional=true)
     public String SECOND_BARCODE_QUALITY_TAG_NAME;  
 
+    @Option(doc="Which read (1 or 2) should the second barcode sequence and quality be added to?", optional=true)
+    public Integer SEC_BC_READ;
+
+
+    @Option(shortName="FIRST", doc="First cycle for each standard (non-index) read.  Can be specified multiple times, for runs with multiple reads.  If this option is used, both a first and last cycle must be specified for all reads (including index reads).",
+            optional = true)
+        public ArrayList<Integer> FIRST_CYCLE;
+
+    @Option(shortName="FINAL", doc="Final cycle for each read.  See FIRST.",
+            optional = true)
+        public ArrayList<Integer> FINAL_CYCLE;
+
+
+    @Option(shortName="FIRST_INDEX", doc="First cycle for each index read.  See FIRST.",
+            optional = true)
+        public ArrayList<Integer> FIRST_INDEX_CYCLE;
+
+    @Option(shortName="FINAL_INDEX", doc="Final cycle for each index read.  See FIRST.",
+            optional = true)
+        public ArrayList<Integer> FINAL_INDEX_CYCLE;
+
     //TODO: add command option to skip adding ci tag
-    
-    //TODO: add command option to overwrite cycle range per read   
     
 
     @Override
@@ -143,6 +167,12 @@ public class Illumina2bam extends PicardCommandLine {
            runfolderPath = this.RUN_FOLDER.getAbsolutePath();
         }   
 
+        if ( (this.SECOND_BARCODE_QUALITY_TAG_NAME != null && this.SECOND_BARCODE_SEQUENCE_TAG_NAME == null)
+          || (this.SECOND_BARCODE_QUALITY_TAG_NAME == null && this.SECOND_BARCODE_SEQUENCE_TAG_NAME != null) )
+        {
+            log.warn("Both SECOND_BARCODE_SEQUENCE_TAG_NAME and SECOND_BARCODE_QUALITY_TAG_NAME need to be given togeter or both missing");
+        }
+
         Lane lane = new Lane(this.INTENSITY_DIR.getAbsolutePath(),
                 this.BASECALLS_DIR.getAbsolutePath(),
                 runfolderPath,
@@ -151,32 +181,27 @@ public class Illumina2bam extends PicardCommandLine {
                 this.PF_FILTER,
                 this.OUTPUT,
                 this.BARCODE_SEQUENCE_TAG_NAME,
-                this.BARCODE_QUALITY_TAG_NAME);
-        
-               
-        if ( (this.SECOND_BARCODE_QUALITY_TAG_NAME != null && this.SECOND_BARCODE_SEQUENCE_TAG_NAME == null)
-            || (this.SECOND_BARCODE_QUALITY_TAG_NAME == null && this.SECOND_BARCODE_SEQUENCE_TAG_NAME != null) )
-        {
-            
-            log.warn("Both SECOND_BARCODE_SEQUENCE_TAG_NAME and SECOND_BARCODE_QUALITY_TAG_NAME need to be given togeter or both missing");
-        }else if(this.SECOND_BARCODE_QUALITY_TAG_NAME != null && this.SECOND_BARCODE_SEQUENCE_TAG_NAME != null){
-            
-            lane.setSecondBarcodeSeqTagName(this.SECOND_BARCODE_SEQUENCE_TAG_NAME);
-            lane.setSecondBarcodeQualTagName(this.SECOND_BARCODE_QUALITY_TAG_NAME);
-        }
+                this.BARCODE_QUALITY_TAG_NAME,
+                this.SECOND_BARCODE_SEQUENCE_TAG_NAME,
+                this.SECOND_BARCODE_QUALITY_TAG_NAME);
 
-        try {
-            log.info("Reading config xml files");
-            lane.readConfigs();
-        } catch (Exception ex) {
-            log.error(ex, "Problems to read config files");
-            return 1;
+        // update cycle range with command line options (if appropriate)
+        if (!FIRST_CYCLE.isEmpty()) {
+            log.info("Setting cycle ranges using command-line options");
+            int status = lane.overwriteCycleRangeByRead(FIRST_CYCLE, 
+                                                        FINAL_CYCLE, 
+                                                        FIRST_INDEX_CYCLE, 
+                                                        FINAL_INDEX_CYCLE);
+            if (status!=0) {
+                log.error("Unable to set cycle ranges");
+                return status;
+            }
         }
         
         log.info("Generating illumina2bam program record");
         lane.setIllumina2bamProgram(this.getThisProgramRecord(this.programName, this.programDS));
-        
-        
+
+
         log.info("Generating read group record");
         String runfolderConfig = lane.getRunfolderConfig();
         String platformUnitConfig = null;
@@ -186,13 +211,36 @@ public class Illumina2bam extends PicardCommandLine {
         Date runDateConfig   = lane.getRunDateConfig();        
         lane.setReadGroup(this.generateSamReadGroupRecord(platformUnitConfig, runDateConfig));
 
-        if( this.FIRST_TILE != null ){
-            log.info("Trying to limit the number tiles from " + this.FIRST_TILE);
+        if( this.FIRST_TILE != null || this.TILE_LIMIT != null ){
+            if(this.FIRST_TILE != null){
+                log.info("Trying to limit the number tiles from " + this.FIRST_TILE);
+            }
             if(this.TILE_LIMIT != null){
                 log.info("Only process " + this.TILE_LIMIT + " tiles");
             }
             lane.reduceTileList(this.FIRST_TILE, this.TILE_LIMIT);
         }
+
+        if (this.BC_READ == null) {
+            this.BC_READ = 1;
+        }
+
+        if (this.SEC_BC_READ == null) {
+            this.SEC_BC_READ = this.BC_READ;
+        }
+
+        if (this.BC_READ != 1 && this.BC_READ != 2) {
+            log.error("BC_READ must be 1 or 2");
+            return 1;
+        }
+
+        if (this.SEC_BC_READ != 1 && this.SEC_BC_READ != 2) {
+            log.error("SEC_BC_READ must be 1 or 2");
+            return 1;
+        }
+
+        lane.set_bc_read(this.BC_READ);
+        lane.set_sec_bc_read(this.SEC_BC_READ);
 
         log.info("Generating bam or sam file output stream with header");
         SAMFileWriter outBam = lane.generateOutputSamStream();
