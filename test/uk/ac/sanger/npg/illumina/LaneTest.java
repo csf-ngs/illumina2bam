@@ -60,7 +60,7 @@ public class LaneTest {
     public static void setUpClass() throws Exception {
         
         System.out.println("Create a lane");
-        lane = new Lane(intensityDir, baseCallDir, runfolderDir, laneNumber, includeSecondCall, pfFilter, output, barcodeSeqTagName, barcodeQualTagName);
+        lane = new Lane(intensityDir, baseCallDir, runfolderDir, laneNumber, includeSecondCall, pfFilter, output, barcodeSeqTagName, barcodeQualTagName, "auto" );
     }
 
     @AfterClass
@@ -73,7 +73,7 @@ public class LaneTest {
     public void bothConfigfileNotAvailable(){
        
         System.out.println("Failed to create a lane with non-exist intensity and basecall directories");
-        Lane failedLane = new Lane(intensityDir + "_not", baseCallDir + "_not", null, laneNumber, includeSecondCall, pfFilter, output, barcodeSeqTagName, barcodeQualTagName);
+        Lane failedLane = new Lane(intensityDir + "_not", baseCallDir + "_not", null, laneNumber, includeSecondCall, pfFilter, output, barcodeSeqTagName, barcodeQualTagName, "auto");
     }
     
     @Test
@@ -219,7 +219,7 @@ public class LaneTest {
         boolean includeSecondCall2 = true;
         boolean pfFilter2 = true;
 
-        Lane lane2 = new Lane(intensityDir2, baseCallDir2, runfolderDir2, laneNumber2, includeSecondCall2, pfFilter2, output, barcodeSeqTagName, barcodeQualTagName);
+        Lane lane2 = new Lane(intensityDir2, baseCallDir2, runfolderDir2, laneNumber2, includeSecondCall2, pfFilter2, output, barcodeSeqTagName, barcodeQualTagName, "auto");
 
         
         HashMap<String, int[]> cycleRangeByRead = lane2.getCycleRangeByReadFromRunParametersFile();
@@ -258,7 +258,7 @@ public class LaneTest {
         boolean includeSecondCall2 = true;
         boolean pfFilter2 = true;
 
-        Lane lane2 = new Lane(intensityDir2, baseCallDir2, null, laneNumber2, includeSecondCall2, pfFilter2, output, barcodeSeqTagName, barcodeQualTagName);
+        Lane lane2 = new Lane(intensityDir2, baseCallDir2, null, laneNumber2, includeSecondCall2, pfFilter2, output, barcodeSeqTagName, barcodeQualTagName, "auto");
 
         int [] barCodeCycleList = lane2.readBarCodeIndexCycles();
         int [] expected = {76,77,78,79,80,81,82,83};
@@ -385,7 +385,7 @@ public class LaneTest {
         boolean pfFilter3 = true;
         File output3 = new File("testdata/6284_8.bam");
 
-        Lane lane3 = new Lane(intensityDir3, baseCallDir3, null, laneNumber3, includeSecondCall3, pfFilter3, output3, barcodeSeqTagName, barcodeQualTagName);
+        Lane lane3 = new Lane(intensityDir3, baseCallDir3, null, laneNumber3, includeSecondCall3, pfFilter3, output3, barcodeSeqTagName, barcodeQualTagName, "auto");
 
         int [] barCodeCycleList = lane3.readBarCodeIndexCycles();
         int [] expected = {77};
@@ -422,7 +422,7 @@ public class LaneTest {
         boolean pfFilter4 = true;
         File output4 = new File("testdata/miseq_1.bam");
 
-        Lane lane4 = new Lane(intensityDir4, baseCallDir4, runFolder, laneNumber4, includeSecondCall4, pfFilter4, output4, barcodeSeqTagName, barcodeQualTagName);
+        Lane lane4 = new Lane(intensityDir4, baseCallDir4, runFolder, laneNumber4, includeSecondCall4, pfFilter4, output4, barcodeSeqTagName, barcodeQualTagName, "auto");
 
         HashMap<String, int[]> cycleRangeByRead = lane4.getCycleRangeByReadFromRunParametersFile();
         assertEquals(cycleRangeByRead.size(), 4);
