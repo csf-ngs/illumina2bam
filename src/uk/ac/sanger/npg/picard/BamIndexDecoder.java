@@ -219,12 +219,12 @@ public class BamIndexDecoder extends PicardCommandLine {
                barcode = "";
             }
             
-            String barcodeName = this.barcodeNameList.get(barcode);
-
-            this.markBarcode(record, barcodeName, readGroupOnlyIdInHeader);
+            //String barcodeName = this.barcodeNameList.get(barcode);
+            //15.1.2016 GEO/SRA now checks read names in fastq files. Should only contain the barcode. 
+            this.markBarcode(record, barcode, readGroupOnlyIdInHeader);
             
             if (isPaired) {
-                this.markBarcode(pairedRecord, barcodeName, readGroupOnlyIdInHeader);
+                this.markBarcode(pairedRecord, barcode, readGroupOnlyIdInHeader);
             }
             
             if( OUTPUT != null ){
@@ -316,11 +316,11 @@ public class BamIndexDecoder extends PicardCommandLine {
             }
 
             for(SAMReadGroupRecord r : oldReadGroupList){
-                    SAMReadGroupRecord newReadGroupRecord = new SAMReadGroupRecord(r.getId() + "#" + barcodeName, r);
+                    SAMReadGroupRecord newReadGroupRecord = new SAMReadGroupRecord(r.getId() + "#" + barcode, r);
                     newReadGroupRecord.setAttribute("PG", programRecord.getProgramGroupId());
                     String pu = newReadGroupRecord.getPlatformUnit();
                     if(pu != null){
-                        newReadGroupRecord.setPlatformUnit(pu + "#" + barcodeName);
+                        newReadGroupRecord.setPlatformUnit(pu + "#" + barcode);
                     }
                     if(namedBarcode != null){
                         if( namedBarcode.libraryName != null && !namedBarcode.libraryName.equals("") ){
